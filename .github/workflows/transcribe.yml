@@ -47,7 +47,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python transcribe.py
       - name: Start the next live run
-        if: always()
+        if: success() && env.QUEUE_URL != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run transcribe.yml --repo ${{ github.repository }} -f model=${{ env.WHISPER_MODEL }}
