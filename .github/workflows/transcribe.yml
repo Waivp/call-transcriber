@@ -1,8 +1,10 @@
-name: Transcribe calls (free Whisper)
+name: Transcribe calls (free Whisper, live)
 
+# Live mode: one run stays up ~5.5 h, checks for new calls every 1-2 minutes, then starts the
+# next run itself. The cron is only a safety net in case the chain ever breaks.
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay a few minutes)
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
       model:
@@ -13,17 +15,23 @@ concurrency:
   group: call-transcriber
   cancel-in-progress: false
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   transcribe:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 350
     env:
       QUEUE_URL: ${{ secrets.QUEUE_URL }}
       HOOK_URL: ${{ secrets.HOOK_URL }}
       WHISPER_MODEL: ${{ github.event.inputs.model || 'large-v3-turbo' }}
       WHISPER_LANG: en
       WHISPER_BEAM: "5"
-      TIME_BUDGET_SEC: "2700"
+      LIVE: "1"
+      TIME_BUDGET_SEC: "19800"
+      MAX_CALLS: "5000"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,3 +46,8 @@ jobs:
           key: whisper-${{ env.WHISPER_MODEL }}-v1
       - run: pip install -r requirements.txt
       - run: python transcribe.py
+      - name: Start the next live run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run transcribe.yml --repo ${{ github.repository }} -f model=${{ env.WHISPER_MODEL }}

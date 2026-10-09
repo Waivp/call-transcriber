@@ -14,6 +14,7 @@ QUEUE_URL = os.environ["QUEUE_URL"]
 HOOK_URL = os.environ["HOOK_URL"]
 MODEL = os.environ.get("WHISPER_MODEL", "small")
 LANG = os.environ.get("WHISPER_LANG", "en") or None
+LIVE = os.environ.get("LIVE", "") == "1"
 BUDGET = int(os.environ.get("TIME_BUDGET_SEC", "2700"))
 MAX_CALLS = int(os.environ.get("MAX_CALLS", "400"))
 UA = {"User-Agent": "Mozilla/5.0 (call-transcriber)"}
@@ -55,11 +56,15 @@ def main():
     print("queue:", len(queue), "model:", MODEL)
     last_refresh = time.time()
     while time.time() - start < BUDGET and done + empty < MAX_CALLS:
-        if time.time() - last_refresh > 600:
+        if time.time() - last_refresh > (120 if LIVE else 600):
             queue, last_refresh = load_queue(), time.time()
         item = next((q for q in queue if q[0] not in seen), None)
         if not item:
-            break
+            if not LIVE:
+                break
+            time.sleep(60)  # live mode: wait for the next call, Odoo refreshes the queue every 10 min
+            queue, last_refresh = load_queue(), time.time()
+            continue
         cid, url = item[0], item[1]
         seen.add(cid)
         try:
