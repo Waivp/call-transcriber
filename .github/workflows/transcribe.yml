@@ -1,0 +1,40 @@
+name: Transcribe calls (free Whisper)
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay a few minutes)
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Whisper model (small / medium / large-v3-turbo)"
+        default: "large-v3-turbo"
+
+concurrency:
+  group: call-transcriber
+  cancel-in-progress: false
+
+jobs:
+  transcribe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      QUEUE_URL: ${{ secrets.QUEUE_URL }}
+      HOOK_URL: ${{ secrets.HOOK_URL }}
+      WHISPER_MODEL: ${{ github.event.inputs.model || 'large-v3-turbo' }}
+      WHISPER_LANG: en
+      WHISPER_BEAM: "5"
+      TIME_BUDGET_SEC: "2700"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: whisper-${{ env.WHISPER_MODEL }}-v1
+      - run: pip install -r requirements.txt
+      - run: python transcribe.py
