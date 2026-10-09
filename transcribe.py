@@ -75,7 +75,7 @@ def main():
                     f.name, language=LANG, beam_size=BEAM, best_of=BEAM,
                     vad_filter=True, vad_parameters={"min_silence_duration_ms": 400, "speech_pad_ms": 300},
                     initial_prompt="Customer service call, Pet Corner Dubai.",
-                    hotwords=VOCAB, condition_on_previous_text=False,
+                    hotwords=(VOCAB if os.environ.get("WHISPER_HOTWORDS") == "1" else None), condition_on_previous_text=False,
                     no_speech_threshold=0.5, compression_ratio_threshold=2.2)
                 lines = [s.text.strip() for s in segs if s.text.strip()]
                 audio_sec += info.duration
