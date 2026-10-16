@@ -42,7 +42,12 @@ def post(items):
 
 
 def load_queue():
-    js = get(QUEUE_URL + "&t=%d" % time.time()).decode()
+    # a short network / server hiccup must not stop the live runner: keep the old queue (empty) and retry next loop
+    try:
+        js = get(QUEUE_URL + "&t=%d" % time.time()).decode()
+    except Exception as e:
+        print("queue fetch failed, retrying later:", type(e).__name__)
+        return []
     m = re.search(r"__CQ_LIVE=(\[.*?\]);", js, re.S)
     return json.loads(m.group(1)) if m else []
 
